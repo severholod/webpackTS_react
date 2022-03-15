@@ -1,6 +1,9 @@
-import React, {FC, useEffect, useRef} from 'react';
+import React, {FC, useEffect, useRef, useCallback} from 'react';
 
-function canvasResize(ctx: any, width: number, height: number): void {
+const RADIUS = 200
+const WIDTH = RADIUS * 2
+const HEIGHT = RADIUS * 2
+function canvasResize(ctx: CanvasRenderingContext2D, width: number, height: number): void {
     ctx.canvas.width = width * window.devicePixelRatio
     ctx.canvas.height = height * window.devicePixelRatio
 
@@ -10,66 +13,40 @@ function canvasResize(ctx: any, width: number, height: number): void {
     ctx.scale(window.devicePixelRatio, window.devicePixelRatio)
 }
 export const Clock: FC = () => {
-    const canvasRef = useRef(null)
+    const canvas = useRef<HTMLCanvasElement>()
+    const ctx = useRef<CanvasRenderingContext2D>()
 
-    const lineLayout = (ctx: any, angle: number, length: number, width: number) => {
-        ctx.beginPath()
-        ctx.lineWidth = width
-        ctx.lineCap = "round";
-        ctx.moveTo(0,0)
-        ctx.rotate(angle)
-        ctx.lineTo(0, -length)
-        ctx.stroke()
-        ctx.rotate(-angle)
+    const handDraw = useCallback((angle: number, length: number, width: number) => {
+        ctx.current.beginPath()
+        ctx.current.lineWidth = width
+        ctx.current.lineCap = "round";
+        ctx.current.moveTo(0,0)
+        ctx.current.rotate(angle)
+        ctx.current.lineTo(0, -length)
+        ctx.current.stroke()
+        ctx.current.rotate(-angle)
+    }, [])
 
-
-    }
-    const numbersLayout = (ctx: any, radius: number) => {
-        ctx.font = radius*0.15 + "px arial";
-        ctx.textBaseline="middle";
-        ctx.textAlign="center";
-        for (let num = 1; num <= 12; num++) {
-            const angle = num * Math.PI / 6
-            ctx.rotate(angle);
-            ctx.translate(0, -radius*0.85);
-            ctx.rotate(-angle);
-            ctx.fillText(num.toString(), 0, 0);
-            ctx.rotate(angle);
-            ctx.translate(0, radius*0.85);
-            ctx.rotate(-angle);
-        }
-    }
-    const clockLayout = (ctx: any, radius: number) => {
+    const clockDraw = useCallback(() => {
         const date = new Date()
-        const hour = date.getHours()
-        const minutes = date.getMinutes()
-        const seconds = date.getSeconds()
-        canvasResize(ctx, radius * 2, radius * 2)
-        ctx.beginPath()
-        ctx.arc(radius, radius, radius, 0 , 2*Math.PI)
-        ctx.fillStyle = "#fff"
-        ctx.fill()
-        ctx.beginPath()
-        ctx.arc(radius, radius, 10, 0 , 2*Math.PI)
-        ctx.fillStyle = "#333"
-        ctx.fill()
-
-        ctx.translate(radius, radius)
-
-        numbersLayout(ctx, radius)
+        const seconds = date.getSeconds() + date.getMilliseconds() / 1000
+        const minutes = date.getMinutes() + seconds / 60
+        const hour = date.getHours() + minutes / 60
+        ctx.current.clearRect(-WIDTH / 2, -HEIGHT / 2, WIDTH, HEIGHT)
 
 
-        lineLayout(ctx, (hour % 12) * (Math.PI/6), radius * 0.5, 15)
-        lineLayout(ctx, minutes * (Math.PI/30), radius * 0.75, 10)
-        lineLayout(ctx, seconds * (Math.PI/30), radius * 0.9, 6)
-
-    }
+        handDraw((hour % 12) * (Math.PI/6), RADIUS * 0.5, 15)
+        handDraw(minutes * (Math.PI/30), RADIUS * 0.75, 10)
+        handDraw(seconds * (Math.PI/30), RADIUS * 0.9, 6)
+        window.requestAnimationFrame(clockDraw)
+    }, [])
     useEffect(() => {
-        // @ts-ignore
-        const ctx = canvasRef.current.getContext('2d')
-        setInterval(() => clockLayout(ctx, 200), 1000)
+        ctx.current = canvas.current.getContext('2d')
+        canvasResize(ctx.current, WIDTH, HEIGHT)
+        ctx.current.translate(WIDTH / 2, HEIGHT / 2)
+        window.requestAnimationFrame(clockDraw)
     }, [])
     return (
-        <canvas ref={canvasRef} style={{backgroundColor: '#333'}}/>
+        <canvas ref={canvas} style={{border: '1px solid #333'}}/>
     );
 };
